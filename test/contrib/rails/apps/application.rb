@@ -6,6 +6,7 @@ if ENV['USE_SIDEKIQ']
   require 'ddtrace/contrib/sidekiq/server_tracer'
 end
 
+# ActionText in Rails 6 requires an ApplicationController to be defined
 class ApplicationController < ActionController::Base; end
 
 module RailsTrace

@@ -60,7 +60,6 @@ RSpec.shared_context 'Rails 5 base application' do
       Rails.application.config.active_job.queue_adapter = :sidekiq
 
       before_test_init.call
-      # binding.pry
       initialize!
       after_test_init.call
     end

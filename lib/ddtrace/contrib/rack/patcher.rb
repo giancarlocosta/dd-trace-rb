@@ -53,11 +53,6 @@ module Datadog
             def call(env)
               env['RESPONSE_MIDDLEWARE'] = self.class.to_s
               __call(env)
-            rescue => e
-              puts 'bad!'
-              pp e
-              puts e.backtrace
-              e
             end
           end
 

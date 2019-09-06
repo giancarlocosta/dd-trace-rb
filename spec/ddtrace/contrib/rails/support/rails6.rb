@@ -10,7 +10,7 @@ require 'ddtrace/contrib/rails/support/controllers'
 require 'ddtrace/contrib/rails/support/middleware'
 require 'ddtrace/contrib/rails/support/models'
 
-require 'action_text'
+# ActionText in Rails 6 requires an ApplicationController to be defined
 class ApplicationController < ActionController::Base; end
 
 RSpec.shared_context 'Rails 6 base application' do

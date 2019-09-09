@@ -88,6 +88,8 @@ RSpec.shared_context 'Rails 6 base application' do
   # Rails 5 leaves a bunch of global class configuration on Rails::Railtie::Configuration in class variables
   # We need to reset these so they don't carry over between example runs
   def reset_rails_configuration!
+    # TODO: can we reuse this?
+
     # pp 'ActiveRecord::Railtie.instance_variable_set(:@instance, nil) reset'
     # pp ActiveRecord::Railtie.instance_variable_get(:@instance).config
     # ActiveRecord::Railtie.instance_variable_set(:@instance, nil)

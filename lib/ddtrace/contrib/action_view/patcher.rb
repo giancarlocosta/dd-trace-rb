@@ -30,7 +30,12 @@ module Datadog
         def patch_renderer
           do_once(:patch_renderer) do
             if defined?(::ActionView::TemplateRenderer) && defined?(::ActionView::PartialRenderer)
-              ::ActionView::TemplateRenderer.send(:prepend, Instrumentation::TemplateRenderer::Rails31Plus)
+              if Gem.loaded_specs['actionview'].version < Gem::Version.new('6')
+                ::ActionView::TemplateRenderer.send(:prepend, Instrumentation::TemplateRenderer::Rails31To5)
+              else
+                ::ActionView::TemplateRenderer.send(:prepend, Instrumentation::TemplateRenderer::Rails6Plus)
+              end
+
               ::ActionView::PartialRenderer.send(:prepend, Instrumentation::PartialRenderer)
             elsif defined?(::ActionView::Rendering) && defined?(::ActionView::Partials::PartialRenderer)
               # NOTE: Rails < 3.1 compatibility: different classes are used

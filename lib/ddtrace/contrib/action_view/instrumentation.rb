@@ -84,7 +84,7 @@ module Datadog
           end
 
           # Rails >= 3.1 template rendering
-          module Rails31Plus
+          module BaseRails31Plus
             def render(*args, &block)
               datadog_tracer.trace(
                 Ext::SPAN_RENDER_TEMPLATE,
@@ -95,43 +95,36 @@ module Datadog
             end
 
             def render_template(*args)
-              begin
-                # arguments based on render_template signature (stable since Rails 3.2)
-                template = args[0]
-                layout_name = args[1]
+              template = datadog_template(args)
+              layout_name = datadog_layout_name(args)
 
-                # update the tracing context with computed values before the rendering
-                template_name = template.try('identifier')
-                template_name = Utils.normalize_template_name(template_name)
-                layout = layout_name.try(:[], 'virtual_path')
-
-                # Rails 6 TODO move me
-                # context = args[0]
-                template = args[1]
-                layout_ = args[2]
-
-                layout ||= layout_.try(:call)
-                template_name ||= Utils.normalize_template_name(template.try('identifier'))
-
-                if template_name
-                  active_datadog_span.set_tag(
-                    Ext::TAG_TEMPLATE_NAME,
-                    template_name
-                  )
-                end
-
-                if layout
-                  active_datadog_span.set_tag(
-                    Ext::TAG_LAYOUT,
-                    layout
-                  )
-                end
-              rescue StandardError => e
-                Datadog::Tracer.log.debug(e.message)
-              end
+              datadog_render_template(template, layout_name)
 
               # execute the original function anyway
               super(*args)
+            end
+
+            def datadog_render_template(template, layout_name)
+              # update the tracing context with computed values before the rendering
+              template_name = template.try('identifier')
+              template_name = Utils.normalize_template_name(template_name)
+              layout = layout_name.try(:[], 'virtual_path') # TODO: can be called without parameters since Rails 6
+
+              if template_name
+                active_datadog_span.set_tag(
+                  Ext::TAG_TEMPLATE_NAME,
+                  template_name
+                )
+              end
+
+              if layout
+                active_datadog_span.set_tag(
+                  Ext::TAG_LAYOUT,
+                  layout
+                )
+              end
+            rescue StandardError => e
+              Datadog::Tracer.log.debug(e.message)
             end
 
             private
@@ -149,6 +142,30 @@ module Datadog
               self.active_datadog_span = nil
             end
           end
+
+          module Rails31To5
+            include BaseRails31Plus
+
+            def datadog_template(args)
+              args[0]
+            end
+
+            def datadog_layout_name(args)
+              args[1]
+            end
+          end
+
+          module Rails6Plus
+            include BaseRails31Plus
+
+            def datadog_template(args)
+              args[1]
+            end
+
+            def datadog_layout_name(args)
+              args[2]
+            end
+          end
         end
 
         # Instrumentation for partial rendering
@@ -163,26 +180,26 @@ module Datadog
           end
 
           def render_partial(*args)
-            begin
-              template_name = Utils.normalize_template_name(@template.try('identifier'))
+            template = @template # Rails < 6
+            template ||= args[1] # Rails >= 6
 
-              # Rails 6
-              # context = args[0]
-              template = args[1]
-              template_name ||= Utils.normalize_template_name(template.try('identifier'))
-
-              if template_name
-                active_datadog_span.set_tag(
-                  Ext::TAG_TEMPLATE_NAME,
-                  template_name
-                )
-              end
-            rescue StandardError => e
-              Datadog::Tracer.log.debug(e.message)
-            end
+            datadog_render_partial(template)
 
             # execute the original function anyway
             super(*args)
+          end
+
+          def datadog_render_partial(template)
+            template_name = Utils.normalize_template_name(template.try('identifier'))
+
+            if template_name
+              active_datadog_span.set_tag(
+                Ext::TAG_TEMPLATE_NAME,
+                template_name
+              )
+            end
+          rescue StandardError => e
+            Datadog::Tracer.log.debug(e.message)
           end
 
           private

@@ -83,7 +83,7 @@ module Datadog
             end
           end
 
-          # Rails >= 3.1 template rendering
+          # Shared code for Rails >= 3.1 template rendering
           module BaseRails31Plus
             def render(*args, &block)
               datadog_tracer.trace(
@@ -143,6 +143,7 @@ module Datadog
             end
           end
 
+          # Rails >= 3.1 && < 6 template rendering
           module Rails31To5
             include BaseRails31Plus
 
@@ -155,6 +156,7 @@ module Datadog
             end
           end
 
+          # Rails >= 6 template rendering
           module Rails6Plus
             include BaseRails31Plus
 

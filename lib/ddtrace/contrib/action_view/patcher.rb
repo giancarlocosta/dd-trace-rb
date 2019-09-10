@@ -11,6 +11,8 @@ module Datadog
       module Patcher
         include Contrib::Patcher
 
+        RAILS_6_VERSION = Gem::Version.new('6').freeze
+
         module_function
 
         def patched?
@@ -30,7 +32,7 @@ module Datadog
         def patch_renderer
           do_once(:patch_renderer) do
             if defined?(::ActionView::TemplateRenderer) && defined?(::ActionView::PartialRenderer)
-              if Gem.loaded_specs['actionview'].version < Gem::Version.new('6')
+              if Integration.version < RAILS_6_VERSION
                 ::ActionView::TemplateRenderer.send(:prepend, Instrumentation::TemplateRenderer::Rails31To5)
                 ::ActionView::PartialRenderer.send(:prepend, Instrumentation::PartialRenderer::RailsLessThan6)
               else

@@ -84,7 +84,7 @@ module Datadog
           end
 
           # Shared code for Rails >= 3.1 template rendering
-          module BaseRails31Plus
+          module Rails31Plus
             def render(*args, &block)
               datadog_tracer.trace(
                 Ext::SPAN_RENDER_TEMPLATE,
@@ -95,10 +95,13 @@ module Datadog
             end
 
             def render_template(*args)
-              template = datadog_template(args)
-              layout_name = datadog_layout_name(args)
+              begin
+                template, layout_name = datadog_parse_args(*args)
 
-              datadog_render_template(template, layout_name)
+                datadog_render_template(template, layout_name)
+              rescue StandardError => e
+                Datadog::Tracer.log.debug(e.message)
+              end
 
               # execute the original function anyway
               super(*args)
@@ -108,7 +111,7 @@ module Datadog
               # update the tracing context with computed values before the rendering
               template_name = template.try('identifier')
               template_name = Utils.normalize_template_name(template_name)
-              layout = layout_name.try(:[], 'virtual_path') # TODO: can be called without parameters since Rails 6
+              layout = layout_name.try(:[], 'virtual_path') # Proc can be called without parameters since Rails 6
 
               if template_name
                 active_datadog_span.set_tag(
@@ -123,8 +126,6 @@ module Datadog
                   layout
                 )
               end
-            rescue StandardError => e
-              Datadog::Tracer.log.debug(e.message)
             end
 
             private
@@ -145,27 +146,19 @@ module Datadog
 
           # Rails >= 3.1 && < 6 template rendering
           module Rails31To5
-            include BaseRails31Plus
+            include Rails31Plus
 
-            def datadog_template(args)
-              args[0]
-            end
-
-            def datadog_layout_name(args)
-              args[1]
+            def datadog_parse_args(template, layout_name, *args)
+              [template, layout_name]
             end
           end
 
           # Rails >= 6 template rendering
           module Rails6Plus
-            include BaseRails31Plus
+            include Rails31Plus
 
-            def datadog_template(args)
-              args[1]
-            end
-
-            def datadog_layout_name(args)
-              args[2]
+            def datadog_parse_args(view, template, layout_name, *args)
+              [template, layout_name]
             end
           end
         end
@@ -182,10 +175,13 @@ module Datadog
           end
 
           def render_partial(*args)
-            template = @template # Rails < 6
-            template ||= args[1] # Rails >= 6
+            begin
+              template = datadog_template(*args)
 
-            datadog_render_partial(template)
+              datadog_render_partial(template)
+            rescue StandardError => e
+              Datadog::Tracer.log.debug(e.message)
+            end
 
             # execute the original function anyway
             super(*args)
@@ -200,8 +196,6 @@ module Datadog
                 template_name
               )
             end
-          rescue StandardError => e
-            Datadog::Tracer.log.debug(e.message)
           end
 
           private
@@ -217,6 +211,24 @@ module Datadog
             yield
           ensure
             self.active_datadog_span = nil
+          end
+
+          # Rails < 6 partial rendering
+          module RailsLessThan6
+            include PartialRenderer
+
+            def datadog_template(*args)
+              @template
+            end
+          end
+
+          # Rails >= 6 partial rendering
+          module Rails6Plus
+            include PartialRenderer
+
+            def datadog_template(*args)
+              args[1]
+            end
           end
         end
       end
